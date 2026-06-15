@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Thermo ESP32 - Web BLE</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  body { font-family: Arial; padding: 20px; }
+  .value { font-size: 1.6em; margin: 10px 0; }
+  button { padding: 10px 20px; font-size: 1.2em; margin-bottom: 20px; }
+  canvas { max-width: 100%; margin-top: 20px; }
+</style>
+</head>
+
+<body>
+
+<h1>Thermo ESP32 - Web BLE</h1>
+<button id="connect">Connecter au Nano ESP32</button>
+
+<h2>Températures</h2>
+<div class="value">T1 : <span id="t1">--</span> °C</div>
+<div class="value">T2 : <span id="t2">--</span> °C</div>
+<div class="value">T3 : <span id="t3">--</span> °C</div>
+<div class="value">T4 : <span id="t4">--</span> °C</div>
+
+<h2>Graphes temps réel</h2>
+<canvas id="chart1"></canvas>
+<canvas id="chart2"></canvas>
+<canvas id="chart3"></canvas>
+<canvas id="chart4"></canvas>
+
+<h2>Graphe combiné</h2>
+<canvas id="chartAll"></canvas>
+
+<!-- Bip sonore -->
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+// -----------------------------
+// CONFIGURATION
+// -----------------------------
+const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
+const TEMP_LIMIT = 250; // seuil d’alerte
+
+const CHAR_UUIDS = {
+  t1: "12345678-1234-1234-1234-1234567890a1",
+  t2: "12345678-1234-1234-1234-1234567890a2",
+  t3: "12345678-1234-1234-1234-1234567890a3",
+  t4: "12345678-1234-1234-1234-1234567890a4"
+};
+
+// -----------------------------
+// PLUGIN LIGNE ROUGE
+// -----------------------------
+const limitLine = {
+  id: 'limitLine',
+  afterDraw(chart) {
+    const yScale = chart.scales.y;
+    const ctx = chart.ctx;
+    const y = yScale.getPixelForValue(TEMP_LIMIT);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(chart.chartArea.left, y);
+    ctx.lineTo(chart.chartArea.right, y);
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+// -----------------------------
+// CREATION DES GRAPHES
+// -----------------------------
+let charts = {};
+let combinedChart;
+
+function createChart(canvasId, label, color) {
+  return new Chart(document.getElementById(canvasId), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: label,
+        data: [],
+        borderColor: color,
+        borderWidth: 2,
+        tension: 0.2
+      }]
+    },
+    options: {
+      animation: false,
+      plugins: { limitLine: true },
+      scales: {
+        x: { display: false },
+        y: { min: 0, max: 350 }
+      }
+    }
+  });
+}
+
+charts.t1 = createChart("chart1", "T1", "red");
+charts.t2 = createChart("chart2", "T2", "blue");
+charts.t3 = createChart("chart3", "T3", "green");
+charts.t4 = createChart("chart4", "T4", "orange");
+
+combinedChart = new Chart(document.getElementById("chartAll"), {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label: "T1", data: [], borderColor: "red", tension: 0.2 },
+      { label: "T2", data: [], borderColor: "blue", tension: 0.2 },
+      { label: "T3", data: [], borderColor: "green", tension: 0.2 },
+      { label: "T4", data: [], borderColor: "orange", tension: 0.2 }
+    ]
+  },
+  options: {
+    animation: false,
+    plugins: { limitLine: true },
+    scales: {
+      x: { display: false },
+      y: { min: 0, max: 350 }
+    }
+  }
+});
+
+// -----------------------------
+// MISE À JOUR DES GRAPHES
+// -----------------------------
+function updateCharts(key, value) {
+  const now = new Date().toLocaleTimeString();
+
+  charts[key].data.labels.push(now);
+  charts[key].data.datasets[0].data.push(value);
+
+  combinedChart.data.labels.push(now);
+  combinedChart.data.datasets[
+    ["t1","t2","t3","t4"].indexOf(key)
+  ].data.push(value);
+
+  if (charts[key].data.labels.length > 60) {
+    charts[key].data.labels.shift();
+    charts[key].data.datasets[0].data.shift();
+  }
+
+  if (combinedChart.data.labels.length > 60) {
+    combinedChart.data.labels.shift();
+    combinedChart.data.datasets.forEach(ds => ds.data.shift());
+  }
+
+  charts[key].update();
+  combinedChart.update();
+}
+
+// -----------------------------
+// CONNEXION BLE
+// -----------------------------
+async function connectBLE() {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SERVICE_UUID] }]
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+
+    for (const key in CHAR_UUIDS) {
+      const char = await service.getCharacteristic(CHAR_UUIDS[key]);
+
+      await char.startNotifications();
+      char.addEventListener("characteristicvaluechanged", event => {
+        const dv = event.target.value;
+        const temp = dv.getFloat32(0, true);
+
+        const span = document.getElementById(key);
+        span.textContent = temp.toFixed(2);
+
+        // --- Alerte température ---
+        if (temp > TEMP_LIMIT) {
+          span.style.color = "red";
+          span.style.fontWeight = "bold";
+          document.getElementById("beep").play();
+        } else {
+          span.style.color = "black";
+          span.style.fontWeight = "normal";
+        }
+
+        updateCharts(key, temp);
+      });
+    }
+
+    alert("Connecté !");
+  }
+  catch (error) {
+    alert("Erreur BLE : " + error);
+  }
+}
+
+document.getElementById("connect").addEventListener("click", connectBLE);
+</script>
+
+</body>
+</html>

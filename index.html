@@ -137,10 +137,10 @@ function updateCharts(key, value) {
     combinedChart.data.datasets[
       ["t1","t2","t3","t4"].indexOf(key)
     ].data.push(value);
+    combinedChart.update();
   }
 
   charts[key].update();
-  if (combinedChart) combinedChart.update();
 }
 
 // -----------------------------
@@ -154,30 +154,6 @@ async function connectBLE() {
 
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
-
-    // Création du graphe combiné
-    if (!combinedChart) {
-      combinedChart = new Chart(document.getElementById("chartAll"), {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: [
-            { label: "T1", data: [], borderColor: "#d32f2f", tension: 0.2 },
-            { label: "T2", data: [], borderColor: "#1976d2", tension: 0.2 },
-            { label: "T3", data: [], borderColor: "#388e3c", tension: 0.2 },
-            { label: "T4", data: [], borderColor: "#f57c00", tension: 0.2 }
-          ]
-        },
-        options: {
-          animation: false,
-          plugins: { limitLine: true },
-          scales: {
-            x: { display: false },
-            y: { min: 0, max: 350 }
-          }
-        }
-      });
-    }
 
     // Lecture des 4 caractéristiques
     for (const key in CHAR_UUIDS) {
@@ -211,7 +187,45 @@ async function connectBLE() {
   }
 }
 
-document.getElementById("connect").addEventListener("click", connectBLE);
+// -----------------------------
+// CREATION DU GRAPHE COMBINÉ APRÈS STABILISATION DU LAYOUT
+// -----------------------------
+document.getElementById("connect").addEventListener("click", () => {
+
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+
+      if (!combinedChart) {
+        combinedChart = new Chart(document.getElementById("chartAll"), {
+          type: 'line',
+          data: {
+            labels: [],
+            datasets: [
+              { label: "T1", data: [], borderColor: "#d32f2f", tension: 0.2 },
+              { label: "T2", data: [], borderColor: "#1976d2", tension: 0.2 },
+              { label: "T3", data: [], borderColor: "#388e3c", tension: 0.2 },
+              { label: "T4", data: [], borderColor: "#f57c00", tension: 0.2 }
+            ]
+          },
+          options: {
+            animation: false,
+            plugins: { limitLine: true },
+            scales: {
+              x: { display: false },
+              y: { min: 0, max: 350 }
+            }
+          }
+        });
+
+        combinedChart.resize();
+      }
+
+      connectBLE();
+
+    });
+  }, 300);
+
+});
 </script>
 
 </body>

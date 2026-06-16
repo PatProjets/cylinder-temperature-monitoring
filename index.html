@@ -34,6 +34,27 @@
   border: 1px solid #ccc;
 }
 
+/* Neutralise les styles globaux de GitHub Pages */
+canvas {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+}
+
+/* Force le graphe combiné à la bonne hauteur */
+#containerAll {
+  height: 350px !important;
+  display: block !important;
+}
+
+#chartAll {
+  height: 100% !important;
+  width: 100% !important;
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+}
+
 </style>
 </head>
 
@@ -60,6 +81,8 @@
 <div id="containerAll">
   <canvas id="chartAll"></canvas>
 </div>
+
+
 
 
 <!-- Bip sonore -->

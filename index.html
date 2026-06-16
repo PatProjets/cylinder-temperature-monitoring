@@ -12,49 +12,19 @@
   button { padding: 10px 20px; font-size: 1.2em; margin-bottom: 20px; }
   canvas { max-width: 100%; margin-top: 20px; }
 
-  /* Graphe combiné : hauteur FIXE et forcée */
+  /* Conteneur du graphe combiné */
+  #containerAll {
+    height: 350px;
+    display: block;
+  }
+
+  /* Canvas du graphe combiné */
   #chartAll {
-    height: 350px !important;
-    min-height: 350px !important;
-    max-height: 350px !important;
+    height: 100%;
+    width: 100%;
     background: #f5f5f5;
     border: 1px solid #ccc;
-    display: block !important;
   }
-  
-  #containerAll {
-  height: 350px !important;
-  display: block !important;
-}
-
-  #chartAll {
-  height: 100% !important;
-  width: 100% !important;
-  background: #f5f5f5;
-  border: 1px solid #ccc;
-}
-
-/* Neutralise les styles globaux de GitHub Pages */
-canvas {
-  height: auto !important;
-  max-height: none !important;
-  min-height: 0 !important;
-  aspect-ratio: auto !important;
-}
-
-/* Force le graphe combiné à la bonne hauteur */
-#containerAll {
-  height: 350px !important;
-  display: block !important;
-}
-
-#chartAll {
-  height: 100% !important;
-  width: 100% !important;
-  background: #f5f5f5;
-  border: 1px solid #ccc;
-}
-
 </style>
 </head>
 
@@ -75,15 +45,11 @@ canvas {
 <canvas id="chart3"></canvas>
 <canvas id="chart4"></canvas>
 
-
+<h2>Graphe combiné</h2>
 <div id="containerAll">
   <canvas id="chartAll"></canvas>
 </div>
 
-
-
-
-<!-- Bip sonore -->
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
@@ -173,16 +139,6 @@ function updateCharts(key, value) {
     ].data.push(value);
   }
 
-  if (charts[key].data.labels.length > 60) {
-    charts[key].data.labels.shift();
-    charts[key].data.datasets[0].data.shift();
-  }
-
-  if (combinedChart && combinedChart.data.labels.length > 60) {
-    combinedChart.data.labels.shift();
-    combinedChart.data.datasets.forEach(ds => ds.data.shift());
-  }
-
   charts[key].update();
   if (combinedChart) combinedChart.update();
 }
@@ -199,9 +155,7 @@ async function connectBLE() {
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
 
-    // -----------------------------
-    // CREATION DU GRAPHE COMBINÉ AU BON MOMENT
-    // -----------------------------
+    // Création du graphe combiné
     if (!combinedChart) {
       combinedChart = new Chart(document.getElementById("chartAll"), {
         type: 'line',
@@ -223,20 +177,13 @@ async function connectBLE() {
           }
         }
       });
-
-      // 🔥 Correction définitive : recalcul de taille après rendu
-      setTimeout(() => {
-        combinedChart.resize();
-      }, 300);
     }
 
-    // -----------------------------
-    // LECTURE DES 4 CARACTÉRISTIQUES
-    // -----------------------------
+    // Lecture des 4 caractéristiques
     for (const key in CHAR_UUIDS) {
       const char = await service.getCharacteristic(CHAR_UUIDS[key]);
-
       await char.startNotifications();
+
       char.addEventListener("characteristicvaluechanged", event => {
         const dv = event.target.value;
         const temp = dv.getFloat32(0, true);

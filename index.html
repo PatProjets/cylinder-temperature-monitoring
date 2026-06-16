@@ -12,11 +12,14 @@
   button { padding: 10px 20px; font-size: 1.2em; margin-bottom: 20px; }
   canvas { max-width: 100%; margin-top: 20px; }
 
-  /* Graphe combiné plus visible */
+  /* Graphe combiné : hauteur FIXE et forcée */
   #chartAll {
-    height: 300px !important;
+    height: 350px !important;
+    min-height: 350px !important;
+    max-height: 350px !important;
     background: #f5f5f5;
     border: 1px solid #ccc;
+    display: block !important;
   }
 </style>
 </head>
@@ -49,7 +52,7 @@
 // CONFIGURATION
 // -----------------------------
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
-const TEMP_LIMIT = 250; // seuil d’alerte
+const TEMP_LIMIT = 250;
 
 const CHAR_UUIDS = {
   t1: "12345678-1234-1234-1234-1234567890a1",
@@ -131,7 +134,6 @@ function updateCharts(key, value) {
     ].data.push(value);
   }
 
-  // Limiter à 60 points
   if (charts[key].data.labels.length > 60) {
     charts[key].data.labels.shift();
     charts[key].data.datasets[0].data.shift();
@@ -159,7 +161,7 @@ async function connectBLE() {
     const service = await server.getPrimaryService(SERVICE_UUID);
 
     // -----------------------------
-    // CREATION DU GRAPHE COMBINÉ (AU BON MOMENT)
+    // CREATION DU GRAPHE COMBINÉ AU BON MOMENT
     // -----------------------------
     if (!combinedChart) {
       combinedChart = new Chart(document.getElementById("chartAll"), {
@@ -182,6 +184,11 @@ async function connectBLE() {
           }
         }
       });
+
+      // 🔥 Correction définitive : recalcul de taille après rendu
+      setTimeout(() => {
+        combinedChart.resize();
+      }, 300);
     }
 
     // -----------------------------
@@ -198,7 +205,6 @@ async function connectBLE() {
         const span = document.getElementById(key);
         span.textContent = temp.toFixed(2);
 
-        // --- Alerte température ---
         if (temp > TEMP_LIMIT) {
           span.style.color = "red";
           span.style.fontWeight = "bold";

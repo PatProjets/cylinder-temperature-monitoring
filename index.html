@@ -12,13 +12,13 @@
   button { padding: 10px 20px; font-size: 1.2em; margin-bottom: 20px; }
   canvas { max-width: 100%; margin-top: 20px; }
 
-  /* Conteneur du graphe combiné */
+  /* Conteneur du graphe */
   #containerAll {
     height: 350px;
     display: block;
   }
 
-  /* Canvas du graphe combiné */
+  /* Canvas du graphe */
   #chartAll {
     height: 100%;
     width: 100%;
@@ -39,13 +39,7 @@
 <div class="value">T3 : <span id="t3">--</span> °C</div>
 <div class="value">T4 : <span id="t4">--</span> °C</div>
 
-<h2>Graphes temps réel</h2>
-<canvas id="chart1"></canvas>
-<canvas id="chart2"></canvas>
-<canvas id="chart3"></canvas>
-<canvas id="chart4"></canvas>
-
-<h2>Graphe combiné</h2>
+<h2>Graphe superposé</h2>
 <div id="containerAll">
   <canvas id="chartAll"></canvas>
 </div>
@@ -57,7 +51,7 @@
 // CONFIGURATION
 // -----------------------------
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
-const TEMP_LIMIT = 250;
+const TEMP_LIMIT = 50;   // seuil visible pour test
 
 const CHAR_UUIDS = {
   t1: "12345678-1234-1234-1234-1234567890a1",
@@ -89,58 +83,73 @@ const limitLine = {
 };
 
 // -----------------------------
-// CREATION DES GRAPHES INDIVIDUELS
+// GRAPHE SUPERPOSÉ
 // -----------------------------
-let charts = {};
-let combinedChart = null;
-
-function createChart(canvasId, label, color) {
-  return new Chart(document.getElementById(canvasId), {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [{
-        label: label,
+let combinedChart = new Chart(document.getElementById("chartAll"), {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        label: "T1",
         data: [],
-        borderColor: color,
+        borderColor: "rgba(211,47,47,1)",
+        backgroundColor: "rgba(211,47,47,0.2)",
         borderWidth: 2,
         tension: 0.2
-      }]
-    },
-    options: {
-      animation: false,
-      plugins: { limitLine: true },
-      scales: {
-        x: { display: false },
-        y: { min: 0, max: 350 }
+      },
+      {
+        label: "T2",
+        data: [],
+        borderColor: "rgba(25,118,210,1)",
+        backgroundColor: "rgba(25,118,210,0.2)",
+        borderWidth: 2,
+        tension: 0.2
+      },
+      {
+        label: "T3",
+        data: [],
+        borderColor: "rgba(56,142,60,1)",
+        backgroundColor: "rgba(56,142,60,0.2)",
+        borderWidth: 2,
+        tension: 0.2
+      },
+      {
+        label: "T4",
+        data: [],
+        borderColor: "rgba(245,124,0,1)",
+        backgroundColor: "rgba(245,124,0,0.2)",
+        borderWidth: 2,
+        tension: 0.2
       }
+    ]
+  },
+  options: {
+    animation: false,
+    plugins: { limitLine: true },
+    scales: {
+      x: { display: false },
+      y: { min: 0, max: 350 }
     }
-  });
-}
-
-charts.t1 = createChart("chart1", "T1", "#d32f2f");
-charts.t2 = createChart("chart2", "T2", "#1976d2");
-charts.t3 = createChart("chart3", "T3", "#388e3c");
-charts.t4 = createChart("chart4", "T4", "#f57c00");
+  }
+});
 
 // -----------------------------
-// MISE À JOUR DES GRAPHES
+// MISE À JOUR DES DONNÉES
 // -----------------------------
 function updateCharts(key, value) {
   const now = new Date().toLocaleTimeString();
+  const index = ["t1","t2","t3","t4"].indexOf(key);
 
-  charts[key].data.labels.push(now);
-  charts[key].data.datasets[0].data.push(value);
+  combinedChart.data.labels.push(now);
+  combinedChart.data.datasets[index].data.push(value);
 
-  if (combinedChart) {
-    combinedChart.data.labels.push(now);
-    combinedChart.data.datasets[
-      ["t1","t2","t3","t4"].indexOf(key)
-    ].data.push(value);
-    combinedChart.update();
+  if (combinedChart.data.labels.length > 60) {
+    combinedChart.data.labels.shift();
+    combinedChart.data.datasets.forEach(ds => ds.data.shift());
   }
 
-  charts[key].update();
+  combinedChart.update();
 }
 
 // -----------------------------
@@ -155,7 +164,6 @@ async function connectBLE() {
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
 
-    // Lecture des 4 caractéristiques
     for (const key in CHAR_UUIDS) {
       const char = await service.getCharacteristic(CHAR_UUIDS[key]);
       await char.startNotifications();
@@ -187,45 +195,7 @@ async function connectBLE() {
   }
 }
 
-// -----------------------------
-// CREATION DU GRAPHE COMBINÉ APRÈS STABILISATION DU LAYOUT
-// -----------------------------
-document.getElementById("connect").addEventListener("click", () => {
-
-  setTimeout(() => {
-    requestAnimationFrame(() => {
-
-      if (!combinedChart) {
-        combinedChart = new Chart(document.getElementById("chartAll"), {
-          type: 'line',
-          data: {
-            labels: [],
-            datasets: [
-              { label: "T1", data: [], borderColor: "#d32f2f", tension: 0.2 },
-              { label: "T2", data: [], borderColor: "#1976d2", tension: 0.2 },
-              { label: "T3", data: [], borderColor: "#388e3c", tension: 0.2 },
-              { label: "T4", data: [], borderColor: "#f57c00", tension: 0.2 }
-            ]
-          },
-          options: {
-            animation: false,
-            plugins: { limitLine: true },
-            scales: {
-              x: { display: false },
-              y: { min: 0, max: 350 }
-            }
-          }
-        });
-
-        combinedChart.resize();
-      }
-
-      connectBLE();
-
-    });
-  }, 300);
-
-});
+document.getElementById("connect").addEventListener("click", connectBLE);
 </script>
 
 </body>

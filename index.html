@@ -53,6 +53,12 @@
 <div class="value">T3 : <span id="t3">--</span> °C</div>
 <div class="value">T4 : <span id="t4">--</span> °C</div>
 
+<h2>Réglage du seuil d’alerte</h2>
+<div>
+  <input id="limitInput" type="number" value="50" min="0" max="350" style="font-size:1.2em; width:80px;">
+  <button id="applyLimit">OK</button>
+</div>
+
 <h2>Graphes superposés</h2>
 <div id="overlayContainer">
   <canvas id="chart1" class="overlayChart"></canvas>
@@ -74,8 +80,9 @@
 // -----------------------------
 // CONFIGURATION
 // -----------------------------
+let TEMP_LIMIT = 50;  // seuil dynamique
+
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
-const TEMP_LIMIT = 50;
 
 const CHAR_UUIDS = {
   t1: "12345678-1234-1234-1234-1234567890a1",
@@ -160,6 +167,20 @@ function updateCharts(key, value) {
 
   chart.update();
 }
+
+// -----------------------------
+// RÉGLAGE DU SEUIL D’ALERTE
+// -----------------------------
+document.getElementById("applyLimit").addEventListener("click", () => {
+  const newLimit = parseFloat(document.getElementById("limitInput").value);
+
+  if (!isNaN(newLimit) && newLimit >= 0 && newLimit <= 350) {
+    TEMP_LIMIT = newLimit;
+
+    // Mise à jour immédiate des 4 graphes
+    Object.values(charts).forEach(chart => chart.update());
+  }
+});
 
 // -----------------------------
 // CONNEXION BLE

@@ -10,20 +10,25 @@
   body { font-family: Arial; padding: 20px; }
   .value { font-size: 1.6em; margin: 10px 0; }
   button { padding: 10px 20px; font-size: 1.2em; margin-bottom: 20px; }
-  canvas { max-width: 100%; margin-top: 20px; }
 
-  /* Conteneur du graphe */
-  #containerAll {
+  /* Conteneur unique pour les 4 graphes superposés */
+  #overlayContainer {
+    position: relative;
     height: 350px;
-    display: block;
-  }
-
-  /* Canvas du graphe */
-  #chartAll {
-    height: 100%;
-    width: 100%;
+    max-width: 100%;
+    margin-top: 20px;
     background: #f5f5f5;
     border: 1px solid #ccc;
+  }
+
+  /* Chaque canvas occupe exactement la même zone, superposé */
+  .overlayChart {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    pointer-events: none; /* pour éviter les conflits de souris, si besoin */
   }
 </style>
 </head>
@@ -39,9 +44,12 @@
 <div class="value">T3 : <span id="t3">--</span> °C</div>
 <div class="value">T4 : <span id="t4">--</span> °C</div>
 
-<h2>Graphe superposé</h2>
-<div id="containerAll">
-  <canvas id="chartAll"></canvas>
+<h2>Graphes superposés</h2>
+<div id="overlayContainer">
+  <canvas id="chart1" class="overlayChart"></canvas>
+  <canvas id="chart2" class="overlayChart"></canvas>
+  <canvas id="chart3" class="overlayChart"></canvas>
+  <canvas id="chart4" class="overlayChart"></canvas>
 </div>
 
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
@@ -83,73 +91,57 @@ const limitLine = {
 };
 
 // -----------------------------
-// GRAPHE SUPERPOSÉ
+// 4 CHARTS INDÉPENDANTS, SUPERPOSÉS
 // -----------------------------
-let combinedChart = new Chart(document.getElementById("chartAll"), {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      {
-        label: "T1",
+let charts = {};
+
+function createChart(canvasId, label, color) {
+  return new Chart(document.getElementById(canvasId), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: label,
         data: [],
-        borderColor: "rgba(211,47,47,1)",
-        backgroundColor: "rgba(211,47,47,0.2)",
+        borderColor: color,
+        backgroundColor: color.replace('1)', '0.2)').replace('rgb', 'rgba'),
         borderWidth: 2,
         tension: 0.2
-      },
-      {
-        label: "T2",
-        data: [],
-        borderColor: "rgba(25,118,210,1)",
-        backgroundColor: "rgba(25,118,210,0.2)",
-        borderWidth: 2,
-        tension: 0.2
-      },
-      {
-        label: "T3",
-        data: [],
-        borderColor: "rgba(56,142,60,1)",
-        backgroundColor: "rgba(56,142,60,0.2)",
-        borderWidth: 2,
-        tension: 0.2
-      },
-      {
-        label: "T4",
-        data: [],
-        borderColor: "rgba(245,124,0,1)",
-        backgroundColor: "rgba(245,124,0,0.2)",
-        borderWidth: 2,
-        tension: 0.2
+      }]
+    },
+    options: {
+      animation: false,
+      plugins: { limitLine: true },
+      scales: {
+        x: { display: false },
+        y: { min: 0, max: 350 }
       }
-    ]
-  },
-  options: {
-    animation: false,
-    plugins: { limitLine: true },
-    scales: {
-      x: { display: false },
-      y: { min: 0, max: 350 }
     }
-  }
-});
+  });
+}
+
+// couleurs en rgba(…,1) pour le borderColor
+charts.t1 = createChart("chart1", "T1", "rgba(211,47,47,1)");
+charts.t2 = createChart("chart2", "T2", "rgba(25,118,210,1)");
+charts.t3 = createChart("chart3", "T3", "rgba(56,142,60,1)");
+charts.t4 = createChart("chart4", "T4", "rgba(245,124,0,1)");
 
 // -----------------------------
-// MISE À JOUR DES DONNÉES
+// MISE À JOUR DES 4 CHARTS
 // -----------------------------
 function updateCharts(key, value) {
   const now = new Date().toLocaleTimeString();
-  const index = ["t1","t2","t3","t4"].indexOf(key);
 
-  combinedChart.data.labels.push(now);
-  combinedChart.data.datasets[index].data.push(value);
+  const chart = charts[key];
+  chart.data.labels.push(now);
+  chart.data.datasets[0].data.push(value);
 
-  if (combinedChart.data.labels.length > 60) {
-    combinedChart.data.labels.shift();
-    combinedChart.data.datasets.forEach(ds => ds.data.shift());
+  if (chart.data.labels.length > 60) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
   }
 
-  combinedChart.update();
+  chart.update();
 }
 
 // -----------------------------

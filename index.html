@@ -21,14 +21,23 @@
     border: 1px solid #ccc;
   }
 
-  /* Chaque canvas occupe exactement la même zone, superposé */
+  /* Chaque canvas occupe exactement la même zone */
   .overlayChart {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     background: transparent;
-    pointer-events: none; /* pour éviter les conflits de souris, si besoin */
+    pointer-events: none;
+  }
+
+  /* Légende manuelle */
+  #legend {
+    margin-top: 10px;
+    font-size: 1.2em;
+  }
+  #legend span {
+    margin-right: 15px;
   }
 </style>
 </head>
@@ -52,6 +61,13 @@
   <canvas id="chart4" class="overlayChart"></canvas>
 </div>
 
+<div id="legend">
+  <span style="color:#d32f2f">■</span> T1
+  <span style="color:#1976d2">■</span> T2
+  <span style="color:#388e3c">■</span> T3
+  <span style="color:#f57c00">■</span> T4
+</div>
+
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
@@ -59,7 +75,7 @@
 // CONFIGURATION
 // -----------------------------
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
-const TEMP_LIMIT = 50;   // seuil visible pour test
+const TEMP_LIMIT = 50;
 
 const CHAR_UUIDS = {
   t1: "12345678-1234-1234-1234-1234567890a1",
@@ -91,7 +107,7 @@ const limitLine = {
 };
 
 // -----------------------------
-// 4 CHARTS INDÉPENDANTS, SUPERPOSÉS
+// 4 CHARTS INDÉPENDANTS SUPERPOSÉS
 // -----------------------------
 let charts = {};
 
@@ -111,7 +127,9 @@ function createChart(canvasId, label, color) {
     },
     options: {
       animation: false,
-      plugins: { limitLine: true },
+      maintainAspectRatio: false,
+      layout: { padding: 0 },
+      plugins: { legend: { display: false }, limitLine: true },
       scales: {
         x: { display: false },
         y: { min: 0, max: 350 }
@@ -120,7 +138,6 @@ function createChart(canvasId, label, color) {
   });
 }
 
-// couleurs en rgba(…,1) pour le borderColor
 charts.t1 = createChart("chart1", "T1", "rgba(211,47,47,1)");
 charts.t2 = createChart("chart2", "T2", "rgba(25,118,210,1)");
 charts.t3 = createChart("chart3", "T3", "rgba(56,142,60,1)");

@@ -16,7 +16,7 @@
     position: relative;
     height: 350px;
     max-width: 100%;
-    margin-top: 30px; /* espace pour éviter que le graphe recouvre l'input */
+    margin-top: 30px;
     background: #f5f5f5;
     border: 1px solid #ccc;
   }
@@ -30,6 +30,12 @@
     background: transparent;
     pointer-events: none;
   }
+
+  /* Ordre d'empilement pour éviter que les lignes rouges se masquent */
+  #chart1 { z-index: 1; }
+  #chart2 { z-index: 2; }
+  #chart3 { z-index: 3; }
+  #chart4 { z-index: 4; }
 
   /* Légende manuelle */
   #legend {
@@ -45,12 +51,6 @@
     position: relative;
     z-index: 10;
   }
-  
-  #chart1 { z-index: 1; }
-  #chart2 { z-index: 2; }
-  #chart3 { z-index: 3; }
-  #chart4 { z-index: 4; }
-  
 </style>
 </head>
 
@@ -67,7 +67,7 @@
 
 <h2>Réglage du seuil d’alerte</h2>
 <div>
-  <input id="limitInput" type="number" value="300" min="0" max="350" style="font-size:1.2em; width:80px;">
+  <input id="limitInput" type="number" value="50" min="0" max="350" style="font-size:1.2em; width:80px;">
   <button id="applyLimit">OK</button>
 </div>
 
@@ -92,7 +92,7 @@
 // -----------------------------
 // CONFIGURATION
 // -----------------------------
-let TEMP_LIMIT = 300;  // seuil dynamique
+let TEMP_LIMIT = 50;  // seuil dynamique
 
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
 
@@ -103,7 +103,30 @@ const CHAR_UUIDS = {
   t4: "12345678-1234-1234-1234-1234567890a4"
 };
 
+// -----------------------------
+// PLUGIN LIGNE ROUGE (Chart.js 4)
+// -----------------------------
+const limitLine = {
+  id: 'limitLine',
+  afterDraw(chart) {
+    const yScale = chart.scales.y;
+    const ctx = chart.ctx;
+    const y = yScale.getPixelForValue(TEMP_LIMIT);
 
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(chart.chartArea.left, y);
+    ctx.lineTo(chart.chartArea.right, y);
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+// 👉 OBLIGATOIRE EN CHART.JS 4
+Chart.register(limitLine);
 
 // -----------------------------
 // 4 CHARTS INDÉPENDANTS SUPERPOSÉS
@@ -128,7 +151,7 @@ function createChart(canvasId, label, color) {
       animation: false,
       maintainAspectRatio: false,
       layout: { padding: 0 },
-      plugins: { legend: { display: false }, limitLine: true },
+      plugins: { legend: { display: false } },
       scales: {
         x: { display: false },
         y: { min: 0, max: 350 }
@@ -160,8 +183,6 @@ function updateCharts(key, value) {
   chart.update();
 }
 
-
-
 // -----------------------------
 // RÉGLAGE DU SEUIL D’ALERTE
 // -----------------------------
@@ -175,28 +196,6 @@ document.getElementById("applyLimit").addEventListener("click", () => {
     Object.values(charts).forEach(chart => chart.update());
   }
 });
-
-// -----------------------------
-// PLUGIN LIGNE ROUGE
-// -----------------------------
-const limitLine = {
-  id: 'limitLine',
-  afterDraw(chart) {
-    const yScale = chart.scales.y;
-    const ctx = chart.ctx;
-    const y = yScale.getPixelForValue(TEMP_LIMIT);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(chart.chartArea.left, y);
-    ctx.lineTo(chart.chartArea.right, y);
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 6]);
-    ctx.stroke();
-    ctx.restore();
-  }
-};
 
 // -----------------------------
 // CONNEXION BLE

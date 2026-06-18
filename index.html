@@ -108,7 +108,7 @@ const CHAR_UUIDS = {
 // -----------------------------
 const limitLine = {
   id: 'limitLine',
-  afterDraw(chart) {
+  afterDatasetsDraw(chart) {
     const yScale = chart.scales.y;
     const ctx = chart.ctx;
     const y = yScale.getPixelForValue(TEMP_LIMIT);
@@ -124,6 +124,7 @@ const limitLine = {
     ctx.restore();
   }
 };
+
 
 // 👉 OBLIGATOIRE EN CHART.JS 4
 Chart.register(limitLine);

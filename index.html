@@ -48,13 +48,15 @@
     margin-top: 10px;
     font-size: 1.2em;
     display: flex;
-    /*gap: 10px; /* espace horizontal entre les éléments */*/
-	margin-right: 15px;
+    gap: 40px; /* espace entre [■ T1] et [■ T2] */
   }
 
-  /*#legend span {
-    margin-right: 15px;
-  }*/
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px; /* petit espace entre le carré et T1 */
+  }
+
 
   #limitInput, #applyLimit {
     position: relative;
@@ -116,11 +118,12 @@
 </div>
 
 <div id="legend">
-  <span><span style="color:#d32f2f">■</span> T1</span>
-  <span><span style="color:#1976d2">■</span> T2</span>
-  <span><span style="color:#388e3c">■</span> T3</span>
-  <span><span style="color:#f57c00">■</span> T4</span>
+  <span class="legend-item"><span class="legend-color" style="color:#d32f2f">■</span> T1</span>
+  <span class="legend-item"><span class="legend-color" style="color:#1976d2">■</span> T2</span>
+  <span class="legend-item"><span class="legend-color" style="color:#388e3c">■</span> T3</span>
+  <span class="legend-item"><span class="legend-color" style="color:#f57c00">■</span> T4</span>
 </div>
+
 
 
 <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>

@@ -11,7 +11,6 @@
   .value { font-size: 1.6em; margin: 10px 0; }
   button { padding: 10px 20px; font-size: 1.2em; margin-bottom: 20px; }
 
-  /* Conteneur unique pour les 4 graphes superposés */
   #overlayContainer {
     position: relative;
     height: 350px;
@@ -21,7 +20,6 @@
     border: 1px solid #ccc;
   }
 
-  /* Chaque canvas occupe exactement la même zone */
   .overlayChart {
     position: absolute;
     inset: 0;
@@ -31,13 +29,21 @@
     pointer-events: none;
   }
 
-  /* Ordre d'empilement pour éviter que les lignes rouges se masquent */
+  /* Canvas dédié à la ligne rouge */
+  #limitCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+
   #chart1 { z-index: 1; }
   #chart2 { z-index: 2; }
   #chart3 { z-index: 3; }
   #chart4 { z-index: 4; }
 
-  /* Légende manuelle */
   #legend {
     margin-top: 10px;
     font-size: 1.2em;
@@ -46,10 +52,9 @@
     margin-right: 15px;
   }
 
-  /* Champ seuil toujours visible */
   #limitInput, #applyLimit {
     position: relative;
-    z-index: 10;
+    z-index: 20;
   }
 </style>
 </head>
@@ -77,6 +82,9 @@
   <canvas id="chart2" class="overlayChart"></canvas>
   <canvas id="chart3" class="overlayChart"></canvas>
   <canvas id="chart4" class="overlayChart"></canvas>
+
+  <!-- Canvas indépendant pour la ligne rouge -->
+  <canvas id="limitCanvas"></canvas>
 </div>
 
 <div id="legend">
@@ -92,7 +100,7 @@
 // -----------------------------
 // CONFIGURATION
 // -----------------------------
-let TEMP_LIMIT = 50;  // seuil dynamique
+let TEMP_LIMIT = 50;
 
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
 
@@ -104,33 +112,36 @@ const CHAR_UUIDS = {
 };
 
 // -----------------------------
-// PLUGIN LIGNE ROUGE (Chart.js 4)
+// CANVAS LIGNE ROUGE (Android compatible)
 // -----------------------------
-const limitLine = {
-  id: 'limitLine',
-  afterDatasetsDraw(chart) {
-    const yScale = chart.scales.y;
-    const ctx = chart.ctx;
-    const y = yScale.getPixelForValue(TEMP_LIMIT);
+const limitCanvas = document.getElementById("limitCanvas");
+const limitCtx = limitCanvas.getContext("2d");
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(chart.chartArea.left, y);
-    ctx.lineTo(chart.chartArea.right, y);
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 6]);
-    ctx.stroke();
-    ctx.restore();
-  }
-};
+function drawLimitLine() {
+  const rect = limitCanvas.getBoundingClientRect();
+  limitCanvas.width = rect.width;
+  limitCanvas.height = rect.height;
 
+  // On prend le chart le plus haut (chart4)
+  const chart = charts.t4;
+  if (!chart) return;
 
-// 👉 OBLIGATOIRE EN CHART.JS 4
-Chart.register(limitLine);
+  const yScale = chart.scales.y;
+  const y = yScale.getPixelForValue(TEMP_LIMIT);
+
+  limitCtx.clearRect(0, 0, limitCanvas.width, limitCanvas.height);
+
+  limitCtx.beginPath();
+  limitCtx.moveTo(chart.chartArea.left, y);
+  limitCtx.lineTo(chart.chartArea.right, y);
+  limitCtx.strokeStyle = "red";
+  limitCtx.lineWidth = 2;
+  limitCtx.setLineDash([6, 6]);
+  limitCtx.stroke();
+}
 
 // -----------------------------
-// 4 CHARTS INDÉPENDANTS SUPERPOSÉS
+// 4 CHARTS INDÉPENDANTS
 // -----------------------------
 let charts = {};
 
@@ -167,7 +178,7 @@ charts.t3 = createChart("chart3", "T3", "rgba(56,142,60,1)");
 charts.t4 = createChart("chart4", "T4", "rgba(245,124,0,1)");
 
 // -----------------------------
-// MISE À JOUR DES 4 CHARTS
+// MISE À JOUR DES CHARTS
 // -----------------------------
 function updateCharts(key, value) {
   const now = new Date().toLocaleTimeString();
@@ -182,20 +193,15 @@ function updateCharts(key, value) {
   }
 
   chart.update();
+  drawLimitLine();
 }
 
 // -----------------------------
-// RÉGLAGE DU SEUIL D’ALERTE
+// RÉGLAGE DU SEUIL
 // -----------------------------
 document.getElementById("applyLimit").addEventListener("click", () => {
-  const newLimit = parseFloat(document.getElementById("limitInput").value);
-
-  if (!isNaN(newLimit) && newLimit >= 0 && newLimit <= 350) {
-    TEMP_LIMIT = newLimit;
-
-    // Mise à jour immédiate des 4 graphes
-    Object.values(charts).forEach(chart => chart.update());
-  }
+  TEMP_LIMIT = parseFloat(document.getElementById("limitInput").value);
+  drawLimitLine();
 });
 
 // -----------------------------
@@ -242,6 +248,9 @@ async function connectBLE() {
 }
 
 document.getElementById("connect").addEventListener("click", connectBLE);
+
+// Redessiner la ligne rouge au redimensionnement
+window.addEventListener("resize", drawLimitLine);
 </script>
 
 </body>

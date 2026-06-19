@@ -70,15 +70,15 @@
 
 <body>
 
-<h1>Thermo ESP32 - Web BLE</h1>
+<h1>Cylinder-Temperature-Monitoring-SCAT</h1>
 <button id="connect">Connecter au Nano ESP32</button>
 
 <h2>Températures</h2>
 <div class="temp-row">
-  <div class="temp-box">T1 : <span id="t1">--</span> °C</div>
-  <div class="temp-box">T2 : <span id="t2">--</span> °C</div>
-  <div class="temp-box">T3 : <span id="t3">--</span> °C</div>
-  <div class="temp-box">T4 : <span id="t4">--</span> °C</div>
+  <div class="temp-box">Cyl 1 : <span id="t1">--</span> °C</div>
+  <div class="temp-box">Cyl 2 : <span id="t2">--</span> °C</div>
+  <div class="temp-box">Cyl 3 : <span id="t3">--</span> °C</div>
+  <div class="temp-box">Cyl 4 : <span id="t4">--</span> °C</div>
 </div>
 
 <h2>Seuil d’alerte</h2>
@@ -114,7 +114,7 @@ const CHAR_UUIDS = {
   t2: "12345678-1234-1234-1234-1234567890a2",
   t3: "12345678-1234-1234-1234-1234567890a3",
   t4: "12345678-1234-1234-1234-1234567890a4",
-  seuil: "12345678-1234-1234-1234-1234567890b0"   // <--- NOUVEAU
+  seuil: "12345678-1234-1234-1234-1234567890b0"   // <---- Seuil d'alarme
 };
 
 let seuilChar = null;

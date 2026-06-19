@@ -132,6 +132,7 @@
 // CONFIGURATION
 // -----------------------------
 let TEMP_LIMIT = 300;
+let seuilChar = null;
 
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
 
@@ -140,6 +141,7 @@ const CHAR_UUIDS = {
   t2: "12345678-1234-1234-1234-1234567890a2",
   t3: "12345678-1234-1234-1234-1234567890a3",
   t4: "12345678-1234-1234-1234-1234567890a4"
+  seuil: "12345678-1234-1234-1234-1234567890b0"  // seuil = seuil d'alarme
 };
 
 // -----------------------------
@@ -228,6 +230,18 @@ function updateCharts(key, value) {
 }
 
 // -----------------------------
+// Envoi du seuil vers l’ESP32
+// -----------------------------
+async function sendSeuilToESP32() {
+  if (!seuilChar) return;
+
+  const buffer = new ArrayBuffer(4);
+  new DataView(buffer).setFloat32(0, TEMP_LIMIT, true);
+
+  await seuilChar.writeValue(buffer);
+}
+
+// -----------------------------
 // RÉGLAGE DU SEUIL
 // -----------------------------
 document.getElementById("applyLimit").addEventListener("click", () => {
@@ -246,6 +260,10 @@ async function connectBLE() {
 
     const server = await device.gatt.connect();
     const service = await server.getPrimaryService(SERVICE_UUID);
+	
+	// Récupération de la caractéristique seuil
+    seuilChar = await service.getCharacteristic(CHAR_UUIDS.seuil);
+
 
     for (const key in CHAR_UUIDS) {
       const char = await service.getCharacteristic(CHAR_UUIDS[key]);

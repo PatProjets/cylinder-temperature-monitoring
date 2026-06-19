@@ -239,11 +239,16 @@ async function connectBLE() {
 		document.getElementById(key).textContent = temp.toFixed(2);
 		updateCharts(key, temp);
 
-		// 🔔 Bip si dépassement du seuil
+		// 🔥 Gestion de l’alerte visuelle + sonore
+		const span = document.getElementById(key);
+
 		if (temp > TEMP_LIMIT) {
+			span.style.color = "red";
 			document.getElementById("beep").play();
-		}
-	});
+		} else {
+			span.style.color = "black";
+		  }
+	  });
 
     }
 

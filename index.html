@@ -249,14 +249,13 @@ async function connectBLE() {
 			span.style.color = "black";
 		  }
 	  });
-	  
-	  alert("Connecté !");
-	  keepScreenAwake();   // <--- empêche la mise en veille
 
     }
 
     alert("Connecté !");
+	keepScreenAwake();   // <--- empêche la mise en veille
   }
+   
   catch (error) {
     alert("Erreur BLE : " + error);
   }
@@ -281,7 +280,6 @@ document.addEventListener("visibilitychange", () => {
     keepScreenAwake();
   }
 });
-
 
 
 document.getElementById("connect").addEventListener("click", connectBLE);

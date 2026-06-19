@@ -233,12 +233,18 @@ async function connectBLE() {
       await char.startNotifications();
 
       char.addEventListener("characteristicvaluechanged", event => {
-        const dv = event.target.value;
-        const temp = dv.getFloat32(0, true);
+		const dv = event.target.value;
+		const temp = dv.getFloat32(0, true);
 
-        document.getElementById(key).textContent = temp.toFixed(2);
-        updateCharts(key, temp);
-      });
+		document.getElementById(key).textContent = temp.toFixed(2);
+		updateCharts(key, temp);
+
+		// 🔔 Bip si dépassement du seuil
+		if (temp > TEMP_LIMIT) {
+			document.getElementById("beep").play();
+		}
+	});
+
     }
 
     alert("Connecté !");

@@ -249,6 +249,9 @@ async function connectBLE() {
 			span.style.color = "black";
 		  }
 	  });
+	  
+	  alert("Connecté !");
+	  keepScreenAwake();   // <--- empêche la mise en veille
 
     }
 
@@ -258,6 +261,28 @@ async function connectBLE() {
     alert("Erreur BLE : " + error);
   }
 }
+
+// -----------------------------
+// Evite la mise en veille
+// -----------------------------
+let wakeLock = null;
+
+async function keepScreenAwake() {
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    console.log("Wake Lock activé");
+  } catch (err) {
+    console.error("Wake Lock erreur :", err);
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (wakeLock !== null && document.visibilityState === "visible") {
+    keepScreenAwake();
+  }
+});
+
+
 
 document.getElementById("connect").addEventListener("click", connectBLE);
 window.addEventListener("resize", drawLimitLine);

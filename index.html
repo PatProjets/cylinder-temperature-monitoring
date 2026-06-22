@@ -102,6 +102,23 @@
   body.dark .temp-alert {
    color: #ff5555; /* rouge plus lisible sur fond noir */
   }
+  
+  /* Couleurs champ du seuil en fonction du mode sombre ou clair */
+  .limit-box {
+    font-size: 1.2em;
+    width: 80px;
+    padding: 6px;
+    border: 1px solid #888;
+    border-radius: 6px;
+    background: #fff;
+    color: #000;
+  }
+
+  body.dark .limit-box {
+    background: #222;
+    color: #fff;
+    border-color: #555;
+  }
 
 </style>
 </head>
@@ -121,7 +138,7 @@
 </div>
 
 <h2>Seuil d’alerte</h2>
-<input id="limitInput" type="number" value="300" min="0" max="350" style="font-size:1.2em; width:80px;">
+<input id="limitInput" class="limit-box" type="number" value="300" min="0" max="350">
 <button id="applyLimit">OK</button>
 
 <h2>Graphes superposés</h2>

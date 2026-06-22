@@ -88,6 +88,20 @@
    color: #fff;
    border: 1px solid #555;
   }
+  
+  /* Texte normal */
+   .temp-normal {
+     color: inherit; /* s’adapte au mode clair/sombre */
+  }
+
+  /* Texte en alerte */
+  .temp-alert {
+    color: red;
+  }
+  
+  body.dark .temp-alert {
+   color: #ff5555; /* rouge plus lisible sur fond noir */
+  }
 
 </style>
 </head>
@@ -100,10 +114,10 @@
 
 <h2>Températures</h2>
 <div class="temp-row">
-  <div class="temp-box">Cyl 1 : <span id="t1">--</span> °C</div>
-  <div class="temp-box">Cyl 2 : <span id="t2">--</span> °C</div>
-  <div class="temp-box">Cyl 3 : <span id="t3">--</span> °C</div>
-  <div class="temp-box">Cyl 4 : <span id="t4">--</span> °C</div>
+  <div class="temp-box">T1 : <span id="t1" class="temp-normal">--</span> °C</div>
+  <div class="temp-box">T2 : <span id="t2" class="temp-normal">--</span> °C</div>
+  <div class="temp-box">T3 : <span id="t3" class="temp-normal">--</span> °C</div>
+  <div class="temp-box">T4 : <span id="t4" class="temp-normal">--</span> °C</div>
 </div>
 
 <h2>Seuil d’alerte</h2>
@@ -281,14 +295,16 @@ async function connectBLE() {
 		// 🔥 Gestion de l’alerte visuelle + sonore
 		const span = document.getElementById(key);
 
-		if (temp > TEMP_LIMIT) {
-			span.style.color = "red";
-			document.getElementById("beep").play();
-		} else {
-			span.style.color = "black";
-		  }
+	if (temp > TEMP_LIMIT) {
+		span.classList.remove("temp-normal");
+		span.classList.add("temp-alert");
+		document.getElementById("beep").play();
+	} else {
+		span.classList.remove("temp-alert");
+		span.classList.add("temp-normal");
+	    }
 	  });
-
+	  
     }
 
     alert("Connecté !");

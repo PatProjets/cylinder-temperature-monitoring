@@ -190,6 +190,17 @@ if (localStorage.getItem("darkMode") === "true") {
   document.body.classList.add("dark");
 }
 
+  // Charger le seuil sauvegardé
+const savedLimit = localStorage.getItem("savedLimit");
+  if (savedLimit !== null) {
+    TEMP_LIMIT = parseFloat(savedLimit);
+    document.getElementById("limitInput").value = TEMP_LIMIT;
+
+    // Mettre à jour la ligne rouge des graphes
+    Object.values(charts).forEach(chart => chart.update());
+  }
+
+
 // -----------------------------
 // Ligne rouge
 // -----------------------------
@@ -296,6 +307,14 @@ async function connectBLE() {
 
     // Récupération de la caractéristique seuil
     seuilChar = await service.getCharacteristic(CHAR_UUIDS.seuil);
+	
+	// Envoi du seuil sauvegardé au Nano ESP32
+	if (savedLimit !== null) {
+	  const buffer = new ArrayBuffer(4);
+      new DataView(buffer).setFloat32(0, TEMP_LIMIT, true);
+      await seuilChar.writeValue(buffer);
+    }
+
 
     // Températures
     for (const key of ["t1","t2","t3","t4"]) {
@@ -326,7 +345,6 @@ async function connectBLE() {
 
     alert("Connecté !");
 	keepScreenAwake();   // <--- empêche la mise en veille
-	sendSeuilToESP32();   // <--- ENVOI SEUIL VERS BLE
   }
    
   catch (error) {

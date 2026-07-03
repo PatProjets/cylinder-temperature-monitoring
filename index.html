@@ -345,6 +345,8 @@ async function connectBLE() {
 
     alert("Connecté !");
 	keepScreenAwake();   // <--- empêche la mise en veille
+	// Mise à jour de la ligne rouge APRÈS la connexion BLE
+	Object.values(charts).forEach(chart => chart.update());
   }
    
   catch (error) {

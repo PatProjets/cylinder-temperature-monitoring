@@ -326,6 +326,7 @@ async function connectBLE() {
 
     alert("Connecté !");
 	keepScreenAwake();   // <--- empêche la mise en veille
+	sendSeuilToESP32();   // <--- ENVOI SEUIL VERS BLE
   }
    
   catch (error) {

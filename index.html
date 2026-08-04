@@ -125,7 +125,7 @@
 
 <body>
 
-<h1>Cylinder-Temperature-Monitoring-SCAT V1.31</h1>
+<h1>Cylinder-Temperature-Monitoring-SCAT V1.32</h1>
 <button id="connect">Se Connecter</button>
 <button id="toggleDark">Mode sombre</button>
 
@@ -138,7 +138,7 @@
 </div>
 
 <h2>Seuil d’alerte</h2>
-<input id="limitInput" class="limit-box" type="number" value="300" min="0" max="350">
+<input id="limitInput" class="limit-box" type="number" value="220" min="0" max="350">
 <button id="applyLimit">OK</button>
 
 <h2>Graphes superposés</h2>
@@ -174,7 +174,7 @@ const CHAR_UUIDS = {
 };
 
 let seuilChar = null;
-let TEMP_LIMIT = 300;
+let TEMP_LIMIT = 220;
 let charts = {};
 
 //------------------------------
@@ -206,7 +206,7 @@ function createChart(canvasId, label, color) {
       animation: false,
       maintainAspectRatio: false,
       plugins: { legend: { display: false }},
-      scales: { x: { display: false }, y: { min: 0, max: 350 }}
+      scales: { x: { display: false }, y: { min: 0, max: 300 }}
     }
   });
 }
@@ -251,7 +251,7 @@ if (savedLimit !== null) {
   document.getElementById("limitInput").value = TEMP_LIMIT;
   drawLimitLine();   // ligne rouge à la bonne valeur dès le départ
 } else {
-  drawLimitLine();   // ligne rouge à 300°C par défaut
+  drawLimitLine();   // ligne rouge à 220°C par défaut
 }
 
 // -----------------------------

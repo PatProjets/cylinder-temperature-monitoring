@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Thermo ESP32 - Web BLE</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  body { font-family: Arial; padding: 20px; }
+  button { padding: 10px 20px; font-size: 1.2em; margin-bottom: 20px; }
+
+  /* Températures en rectangles */
+  .temp-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  .temp-box {
+    flex: 1;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    padding: 12px 0;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 1.4em;
+    font-weight: bold;
+  }
+
+  /* Conteneur des graphes */
+  #overlayContainer {
+    position: relative;
+    height: 350px;
+    max-width: 100%;
+    margin-top: 30px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+  }
+  .overlayChart {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  #limitCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Légende */
+  #legend {
+    margin-top: 10px;
+    font-size: 1.2em;
+    display: flex;
+    gap: 40px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  /* Styles du mode sombre */
+  body.dark {
+   background: #000;
+   color: #fff;
+  }
+
+  body.dark .temp-box {
+   background: #222;
+   border-color: #444;
+   color: #fff;
+  }
+
+  body.dark #overlayContainer {
+   background: #111;
+   border-color: #333;
+  }
+
+  body.dark button {
+   background: #333;
+   color: #fff;
+   border: 1px solid #555;
+  }
+  
+  /* Texte normal */
+   .temp-normal {
+     color: inherit; /* s’adapte au mode clair/sombre */
+  }
+
+  /* Texte en alerte */
+  .temp-alert {
+    color: red;
+  }
+  
+  body.dark .temp-alert {
+   color: #ff5555; /* rouge plus lisible sur fond noir */
+  }
+  
+  /* Couleurs champ du seuil en fonction du mode sombre ou clair */
+  .limit-box {
+    font-size: 1.2em;
+    width: 80px;
+    padding: 6px;
+    border: 1px solid #888;
+    border-radius: 6px;
+    background: #fff;
+    color: #000;
+  }
+
+  body.dark .limit-box {
+    background: #222;
+    color: #fff;
+    border-color: #555;
+  }
+
+</style>
+</head>
+
+<body>
+
+<h1>Cylinder-Temperature-Monitoring-SCAT V1.32</h1>
+<button id="connect">Se Connecter</button>
+<button id="toggleDark">Mode sombre</button>
+
+<h2>Températures</h2>
+<div class="temp-row">
+  <div class="temp-box">T1 : <span id="t1" class="temp-normal">--</span> °C</div>
+  <div class="temp-box">T2 : <span id="t2" class="temp-normal">--</span> °C</div>
+  <div class="temp-box">T3 : <span id="t3" class="temp-normal">--</span> °C</div>
+  <div class="temp-box">T4 : <span id="t4" class="temp-normal">--</span> °C</div>
+</div>
+
+<h2>Seuil d’alerte</h2>
+<input id="limitInput" class="limit-box" type="number" value="220" min="0" max="350">
+<button id="applyLimit">OK</button>
+
+<h2>Graphes superposés</h2>
+<div id="overlayContainer">
+  <canvas id="chart1" class="overlayChart"></canvas>
+  <canvas id="chart2" class="overlayChart"></canvas>
+  <canvas id="chart3" class="overlayChart"></canvas>
+  <canvas id="chart4" class="overlayChart"></canvas>
+  <canvas id="limitCanvas"></canvas>
+</div>
+
+<div id="legend">
+  <span class="legend-item"><span style="color:#d32f2f">■</span> T1</span>
+  <span class="legend-item"><span style="color:#1976d2">■</span> T2</span>
+  <span class="legend-item"><span style="color:#388e3c">■</span> T3</span>
+  <span class="legend-item"><span style="color:#f57c00">■</span> T4</span>
+</div>
+
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+<script>
+// -----------------------------
+// UUIDs
+// -----------------------------
+const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
+
+const CHAR_UUIDS = {
+  t1: "12345678-1234-1234-1234-1234567890a1",
+  t2: "12345678-1234-1234-1234-1234567890a2",
+  t3: "12345678-1234-1234-1234-1234567890a3",
+  t4: "12345678-1234-1234-1234-1234567890a4",
+  seuil: "12345678-1234-1234-1234-1234567890b0"   // <---- Seuil d'alarme
+};
+
+let seuilChar = null;
+let TEMP_LIMIT = 220;
+let charts = {};
+
+//------------------------------
+// Mode sombre
+//------------------------------
+document.getElementById("toggleDark").addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("darkMode", document.body.classList.contains("dark"));
+});
+
+if (localStorage.getItem("darkMode") === "true") {
+  document.body.classList.add("dark");
+}
+
+// -----------------------------
+// Graphes
+// -----------------------------
+function createChart(canvasId, label, color) {
+  return new Chart(document.getElementById(canvasId), {
+    type: 'line',
+    data: { labels: [], datasets: [{
+      label: label,
+      data: [],
+      borderColor: color,
+      borderWidth: 2,
+      tension: 0.2
+    }]},
+    options: {
+      animation: false,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }},
+      scales: { x: { display: false }, y: { min: 0, max: 300 }}
+    }
+  });
+}
+
+charts.t1 = createChart("chart1", "T1", "rgba(211,47,47,1)");
+charts.t2 = createChart("chart2", "T2", "rgba(25,118,210,1)");
+charts.t3 = createChart("chart3", "T3", "rgba(56,142,60,1)");
+charts.t4 = createChart("chart4", "T4", "rgba(245,124,0,1)");
+
+// -----------------------------
+// Ligne rouge
+// -----------------------------
+const limitCanvas = document.getElementById("limitCanvas");
+const limitCtx = limitCanvas.getContext("2d");
+
+function drawLimitLine() {
+  const rect = limitCanvas.getBoundingClientRect();
+  limitCanvas.width = rect.width;
+  limitCanvas.height = rect.height;
+
+  const chart = charts.t4;
+  if (!chart) return;
+
+  const y = chart.scales.y.getPixelForValue(TEMP_LIMIT);
+
+  limitCtx.clearRect(0, 0, limitCanvas.width, limitCanvas.height);
+  limitCtx.beginPath();
+  limitCtx.moveTo(chart.chartArea.left, y);
+  limitCtx.lineTo(chart.chartArea.right, y);
+  limitCtx.strokeStyle = "red";
+  limitCtx.lineWidth = 2;
+  limitCtx.setLineDash([6, 6]);
+  limitCtx.stroke();
+}
+
+// -----------------------------
+// Restauration du seuil sauvegardé
+// -----------------------------
+let savedLimit = localStorage.getItem("savedLimit");
+if (savedLimit !== null) {
+  TEMP_LIMIT = parseFloat(savedLimit);
+  document.getElementById("limitInput").value = TEMP_LIMIT;
+  drawLimitLine();   // ligne rouge à la bonne valeur dès le départ
+} else {
+  drawLimitLine();   // ligne rouge à 220°C par défaut
+}
+
+// -----------------------------
+// Mise à jour des graphes
+// -----------------------------
+function updateCharts(key, value) {
+  const now = new Date().toLocaleTimeString();
+  const chart = charts[key];
+
+  chart.data.labels.push(now);
+  chart.data.datasets[0].data.push(value);
+
+  if (chart.data.labels.length > 60) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+
+  chart.update();
+  drawLimitLine();
+}
+
+// -----------------------------
+// Envoi du seuil vers l’ESP32
+// -----------------------------
+async function sendSeuilToESP32() {
+  if (!seuilChar) return;
+
+  const buffer = new ArrayBuffer(4);
+  new DataView(buffer).setFloat32(0, TEMP_LIMIT, true);
+  await seuilChar.writeValue(buffer);
+}
+
+// -----------------------------
+// Réglage du seuil
+// -----------------------------
+document.getElementById("applyLimit").addEventListener("click", () => {
+  TEMP_LIMIT = parseFloat(document.getElementById("limitInput").value);
+  localStorage.setItem("savedLimit", TEMP_LIMIT);  // on sauvegarde la nouvelle valeur
+  drawLimitLine();
+  sendSeuilToESP32();   // ENVOI BLE comme un vrai clic OK
+});
+
+// -----------------------------
+// Connexion BLE
+// -----------------------------
+async function connectBLE() {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SERVICE_UUID] }]
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+
+    // Récupération de la caractéristique seuil
+    seuilChar = await service.getCharacteristic(CHAR_UUIDS.seuil);
+
+    // Simuler un appui sur OK : envoi du seuil courant (restauré ou par défaut)
+    await sendSeuilToESP32();
+
+    // Températures
+    for (const key of ["t1","t2","t3","t4"]) {
+      const char = await service.getCharacteristic(CHAR_UUIDS[key]);
+      await char.startNotifications();
+
+      char.addEventListener("characteristicvaluechanged", event => {
+        const dv = event.target.value;
+        const temp = dv.getFloat32(0, true);
+
+        document.getElementById(key).textContent = temp.toFixed(2);
+        updateCharts(key, temp);
+
+        // 🔥 Gestion de l’alerte visuelle + sonore
+        const span = document.getElementById(key);
+
+        if (temp > TEMP_LIMIT) {
+          span.classList.remove("temp-normal");
+          span.classList.add("temp-alert");
+          document.getElementById("beep").play();
+        } else {
+          span.classList.remove("temp-alert");
+          span.classList.add("temp-normal");
+        }
+      });
+    }
+
+    alert("Connecté !");
+    keepScreenAwake();   // empêche la mise en veille
+    drawLimitLine();     // s’assure que la ligne rouge est bien dessinée après connexion
+  }
+  catch (error) {
+    alert("Erreur BLE : " + error);
+  }
+}
+
+// -----------------------------
+// Evite la mise en veille
+// -----------------------------
+let wakeLock = null;
+
+async function keepScreenAwake() {
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    console.log("Wake Lock activé");
+  } catch (err) {
+    console.error("Wake Lock erreur :", err);
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (wakeLock !== null && document.visibilityState === "visible") {
+    keepScreenAwake();
+  }
+});
+
+document.getElementById("connect").addEventListener("click", connectBLE);
+window.addEventListener("resize", drawLimitLine);
+</script>
+
+
+</body>
+</html>
